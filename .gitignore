@@ -1,0 +1,17 @@
+# Data & results (regeneratable)
+homework2/
+homework2_cv/output/
+homework2_cv/build/
+
+# Python
+__pycache__/
+*.py[cod]
+*.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

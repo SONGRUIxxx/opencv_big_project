@@ -1,7 +1,11 @@
-# Data & results (regeneratable)
+# Data (not tracked)
 homework2/
-homework2_cv/output/
-homework2_cv/build/
+工程管理大作业/
+prj4/
+
+# Build & output (regeneratable)
+build/
+output/
 
 # Python
 __pycache__/

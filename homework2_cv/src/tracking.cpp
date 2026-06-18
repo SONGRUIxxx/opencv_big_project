@@ -4,6 +4,42 @@
 #include <algorithm>
 #include <cmath>
 
+// =====================================================================
+//  Object-like component filtering
+// =====================================================================
+
+cv::Mat MotionTracker::filterObjectLikeComponents(const cv::Mat& mask, int minArea)
+{
+    cv::Mat labels, stats, centroids;
+    int n = cv::connectedComponentsWithStats(mask, labels, stats, centroids, 8);
+    cv::Mat filtered(mask.size(), CV_8UC1, cv::Scalar(0));
+
+    const double imageArea = static_cast<double>(mask.rows * mask.cols);
+    for (int i = 1; i < n; ++i) {
+        int y = stats.at<int>(i, cv::CC_STAT_TOP);
+        int w = stats.at<int>(i, cv::CC_STAT_WIDTH);
+        int h = stats.at<int>(i, cv::CC_STAT_HEIGHT);
+        int area = stats.at<int>(i, cv::CC_STAT_AREA);
+        double cy = centroids.at<double>(i, 1);
+        double fillRatio = static_cast<double>(area) / std::max(1.0, static_cast<double>(w * h));
+
+        if (area < minArea) continue;
+        // Too large and sparse → likely background texture
+        if (area > 0.16 * imageArea && fillRatio < 0.45) continue;
+        if (w > 0.42 * mask.cols && fillRatio < 0.35) continue;
+        if (h > 0.62 * mask.rows && fillRatio < 0.35) continue;
+        // Too sparse → not object-like
+        if (fillRatio < 0.22) continue;
+        // Centroid outside plausible road region
+        if (cy < 0.24 * mask.rows || cy > 0.68 * mask.rows) continue;
+        // Too close to bottom edge (likely car hood / self)
+        if (y > 0.82 * mask.rows) continue;
+
+        filtered.setTo(255, labels == i);
+    }
+    return filtered;
+}
+
 std::vector<TrackedRegion> MotionTracker::extractRegions(const cv::Mat& motionMask,
                                                           const cv::Mat& flow) {
     std::vector<TrackedRegion> regions;

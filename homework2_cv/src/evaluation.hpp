@@ -71,6 +71,14 @@ public:
     static void writeResultsCSV(const std::string& path,
                                 const std::vector<EvalMetrics>& allMetrics);
 
+    /**
+     * @brief Generate a mask of valid (non-black-border) image region.
+     *
+     * Thresholds grayscale values > 8, then closes + erodes to remove
+     * black borders from fisheye circular projection.
+     */
+    static cv::Mat validImageMask(const cv::Mat& img);
+
 private:
     double cx_, cy_, maxR_;
     double centerThresh_, edgeThresh_;

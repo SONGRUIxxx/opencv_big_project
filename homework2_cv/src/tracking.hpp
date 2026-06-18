@@ -53,4 +53,17 @@ public:
     static void drawTracking(cv::Mat& image,
                              const std::vector<TrackedRegion>& regions,
                              double scaleArrow = 3.0);
+
+    /**
+     * @brief Filter connected components by object-like heuristics.
+     *
+     * Based on ground-truth statistics: filters by fill ratio, centroid position,
+     * and extreme aspect ratios. Removes sky/road regions that are unlikely to be
+     * traffic participants.
+     *
+     * @param mask     Binary motion mask (CV_8UC1)
+     * @param minArea  Minimum component area
+     * @return Filtered binary mask
+     */
+    static cv::Mat filterObjectLikeComponents(const cv::Mat& mask, int minArea = 600);
 };

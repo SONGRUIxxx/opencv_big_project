@@ -1,6 +1,7 @@
 #pragma once
 
 #include <opencv2/core.hpp>
+#include <opencv2/video.hpp>
 #include <vector>
 #include <string>
 
@@ -36,6 +37,20 @@ struct LKResult {
 };
 
 /**
+ * @brief Result of unified motion detection pipeline (ECC + fusion).
+ */
+struct UnifiedMotionResult {
+    cv::Mat motionMask;         // final binary mask
+    cv::Mat flowVis;            // HSV flow visualization
+    cv::Mat flowVisLegend;      // color wheel legend
+    cv::Mat flow;               // raw Farneback flow (CV_32FC2)
+    cv::Mat diffGray;           // raw frame difference
+    cv::Mat flowResidualMask;   // median-flow residual mask
+    cv::Mat diffMask;           // cleaned frame-diff mask
+    double motionRatio = 0.0;
+};
+
+/**
  * @brief Motion extraction algorithms operating on a pair of grayscale images.
  */
 class MotionExtractor {
@@ -65,6 +80,23 @@ public:
     int lkMaxLevel = 3;
     double lkMinDisplacement = 2.0;
 
+    // ---- ECC global motion compensation ----
+    int eccMaxIter = 60;
+    double eccEps = 1e-5;
+
+    // ---- Median-flow residual ----
+    double mfResidualThreshold = 4.0;  // threshold for flow residual magnitude
+
+    // ---- Alignment mode ----
+    std::string alignMode = "ecc";  // "ecc", "feature", "none"
+
+    // ---- Fusion strategy ----
+    std::string fusionMode = "clean-and";  // "clean-and", "raw-and", "clean-or"
+
+    // ---- Post-processing ----
+    int morphSize = 5;
+    int minArea = 600;
+
     // ---- Frame Difference ----
     FrameDiffResult frameDifference(const cv::Mat& grayPrev,
                                     const cv::Mat& grayCurr) const;
@@ -76,6 +108,39 @@ public:
     // ---- Lucas-Kanade Sparse Optical Flow ----
     LKResult lucasKanadeSparse(const cv::Mat& grayPrev,
                                const cv::Mat& grayCurr) const;
+
+    // ---- ECC Alignment ----
+    /** Align curr to prev using ECC affine transform, return aligned curr. */
+    cv::Mat alignECC(const cv::Mat& prevGray, const cv::Mat& currGray) const;
+
+    /** Align curr to prev using ORB feature matching + RANSAC affine, return aligned curr. */
+    cv::Mat alignFeature(const cv::Mat& prevGray, const cv::Mat& currGray) const;
+
+    /** Align curr to prev using specified mode ("ecc", "feature", "none"). */
+    cv::Mat alignCurrentToPrevious(const cv::Mat& prevGray, const cv::Mat& currGray,
+                                   const std::string& mode) const;
+
+    // ---- Median Flow Residual ----
+    /** Compute global median flow vector (for ego-motion estimation). */
+    static cv::Point2f medianFlow(const cv::Mat& flow, const cv::Mat& valid = cv::Mat());
+
+    /** Compute flow residual mask by subtracting global flow. */
+    cv::Mat flowResidualMask(const cv::Mat& flow, const cv::Mat& valid = cv::Mat()) const;
+
+    // ---- Mask Cleanup ----
+    /** Morphological cleanup + min-area filtering. */
+    cv::Mat cleanupMask(const cv::Mat& mask) const;
+
+    // ---- Fusion ----
+    /** Combine frame-diff mask and flow-residual mask according to fusionMode. */
+    cv::Mat fuseMasks(const cv::Mat& diffMask, const cv::Mat& flowMask,
+                      const cv::Mat& diffRaw, const cv::Mat& flowRaw,
+                      const cv::Mat& valid = cv::Mat()) const;
+
+    // ---- Unified Pipeline ----
+    /** Run the unified motion detection pipeline (ECC + fusion). */
+    UnifiedMotionResult detectMotion(const cv::Mat& prevGray, const cv::Mat& currGray,
+                                     const cv::Mat& valid = cv::Mat()) const;
 
 private:
     /** Create a color wheel legend for flow visualization. */

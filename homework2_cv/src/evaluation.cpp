@@ -1,5 +1,6 @@
 #include "evaluation.hpp"
 
+#include <opencv2/imgproc.hpp>
 #include <cmath>
 #include <iomanip>
 
@@ -142,6 +143,22 @@ cv::Mat Evaluator::makeErrorMap(const cv::Mat& predMask, const cv::Mat& gtMask) 
     }
 
     return errorMap;
+}
+
+cv::Mat Evaluator::validImageMask(const cv::Mat& img)
+{
+    cv::Mat gray;
+    if (img.channels() == 3)
+        cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+    else
+        gray = img.clone();
+
+    cv::Mat mask;
+    cv::threshold(gray, mask, 8, 255, cv::THRESH_BINARY);
+    const cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, {9, 9});
+    cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, kernel);
+    cv::erode(mask, mask, kernel, {-1, -1}, 1);
+    return mask;
 }
 
 void Evaluator::writeResultsCSV(const std::string& path,
